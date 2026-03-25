@@ -3,11 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Registro Profesional de Flota</title>
+  <title>Control de Flota</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <style>
     :root {
       --bg-0: #f6f8fc;
@@ -926,14 +929,14 @@
       <div class="brand">
         <div class="brand-badge">RF</div>
         <div>
-          <div class="brand-name">Registro Profesional Flota</div>
+          <div class="brand-name">Control de Flota</div>
           <div class="brand-sub">Control maestro · Operación · Cuadres</div>
         </div>
       </div>
 
       <nav class="tabs">
-        <button class="tab-btn active" data-page="panel">Panel Ejecutivo</button>
-        <button class="tab-btn" data-page="registro">Registro Profesional</button>
+        <button class="tab-btn active" data-page="panel">Dashboard</button>
+        <button class="tab-btn" data-page="registro">Registro</button>
         <button class="tab-btn" data-page="flota">Flota Completa</button>
         <button class="tab-btn" data-page="cuadres">Cuadres</button>
       </nav>
@@ -947,10 +950,9 @@
     <section class="page active" id="page-panel">
       <div class="hero">
         <div>
-          <h1>Centro avanzado para registro profesional y cuadres de flota</h1>
+          <h1>Centro de control y cuadres de flota</h1>
           <p>
-            Plataforma completa con la flota cargada en código, validación interno/PPU en tiempo real,
-            seguimiento semanal de cumplimiento y control operativo por marca y tipo de chasis.
+            Flota maestra integrada, validación interno/PPU en tiempo real y seguimiento semanal de cumplimiento.
           </p>
         </div>
         <div class="hero-kpis">
@@ -1016,7 +1018,7 @@
         </article>
 
         <article class="card span-12">
-          <h3 class="card-title">Últimos Registros Profesionales</h3>
+          <h3 class="card-title">Últimos Registros</h3>
           <div class="table-wrap" id="recent-table-wrap"></div>
         </article>
       </div>
@@ -1085,7 +1087,7 @@
           <div class="col-12 btn-row">
             <button class="btn primary" type="submit">Guardar Inspección</button>
             <button class="btn secondary" type="button" id="btn-reset-form">Limpiar Formulario</button>
-            <button class="btn flat" type="button" id="btn-export-records">Exportar Registros CSV</button>
+            <button class="btn flat" type="button" id="btn-export-records">Descargar Registros XLSX</button>
           </div>
         </form>
 
@@ -1129,7 +1131,10 @@
             </select>
           </div>
           <div class="field col-2">
-            <button class="btn flat" id="btn-export-fleet" type="button">Exportar Flota CSV</button>
+            <div class="btn-row">
+              <button class="btn flat" id="btn-export-fleet" type="button">Descargar Flota XLSX</button>
+              <button class="btn flat" id="btn-export-pending-pdf" type="button">Pendientes PDF</button>
+            </div>
           </div>
         </div>
 
@@ -1202,6 +1207,14 @@
 
   <script>
     const STORAGE_KEY = 'registro_profesional_flotav2';
+    const SUPABASE_URL = String(window.SUPABASE_URL || localStorage.getItem('supabase_url') || 'https://wvcplgwemvqhvtstlqmt.supabase.co').trim();
+    const SUPABASE_ANON_KEY = String(
+      window.SUPABASE_ANON_KEY
+      || localStorage.getItem('supabase_anon_key')
+      || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind2Y3BsZ3dlbXZxaHZ0c3RscW10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAzNjIyMDUsImV4cCI6MjA3NTkzODIwNX0.K1YOv5lRn9fOous3AyG2gPxsQBzqOXRfYHgrCmO5zxk'
+    ).trim();
+    const SUPABASE_TABLE = String(window.SUPABASE_TABLE || localStorage.getItem('supabase_table') || 'registros_profesionales').trim();
+    const HAS_SUPABASE_CREDS = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
 
     const FLEET_RAW = `
 N° Interno PPU Marca chasis N° plazas 1919 LXWP57 Scania RIGIDO 1931 LXWP58 Scania ARTICULADO 1932 LXWP59 Scania ARTICULADO 1885 LXWP60 Scania ARTICULADO 1920 LXWP61 Scania RIGIDO 1921 LXWP62 Scania RIGIDO 1886 LXWP64 Scania ARTICULADO 1693 LXWP66 Scania RIGIDO 1854 LXWP67 Scania RIGIDO 1855 LXWP68 Scania RIGIDO 1856 LXWP69 Scania RIGIDO 1857 LXWP70 Scania RIGIDO 1858 LXWP71 Scania RIGIDO 1859 LXWP72 Scania RIGIDO 1860 LXWP73 Scania RIGIDO 1861 LXWP74 Scania RIGIDO 1862 LXWP75 Scania RIGIDO 1694 LXWP76 Scania RIGIDO 1695 LXWP77 Scania RIGIDO 1863 LXWP78 Scania RIGIDO 1864 LXWP79 Scania RIGIDO 1865 LXWP80 Scania RIGIDO 1696 LXWP81 Scania RIGIDO 1866 LXWP82 Scania RIGIDO 1867 LXWP83 Scania RIGIDO 1697 LXWP85 Scania RIGIDO 1698 LXWP86 Scania RIGIDO 1888 LXWP87 Scania ARTICULADO 1699 PFTV77 Scania RIGIDO 1889 PFTW19 Scania ARTICULADO 1890 PFTW20 Scania ARTICULADO 1700 PFTW25 Scania ARTICULADO 1891 PFTW26 Scania ARTICULADO 1868 PFTW28 Scania RIGIDO 1869 PFTW29 Scania RIGIDO 1870 PFTW30 Scania RIGIDO 1871 PFTW31 Scania RIGIDO 1701 PFTW32 Scania RIGIDO 1872 PFTW34 Scania RIGIDO 1892 PFTW35 Scania ARTICULADO 1702 PFTW36 Scania RIGIDO 1873 PFTW38 Scania RIGIDO 1893 PFTW39 Scania ARTICULADO 1703 PFTW40 Scania RIGIDO 1894 PFTW41 Scania ARTICULADO 1895 PFTW42 Scania ARTICULADO 1874 PFTW44 Scania RIGIDO 1875 PFTW45 Scania RIGIDO 1704 PFTW46 Scania RIGIDO 1876 PFTW47 Scania RIGIDO 1896 PFTW48 Scania ARTICULADO 1877 PFTW49 Scania RIGIDO 1878 PFTW50 Scania RIGIDO 1897 PFTW51 Scania ARTICULADO 1898 PFTW55 Scania ARTICULADO 1879 PFTW56 Scania RIGIDO 1705 PFTW57 Scania RIGIDO 1880 PFTW58 Scania RIGIDO 1899 PFTW59 Scania ARTICULADO 1706 PFTW60 Scania ARTICULADO 1900 PFTW61 Scania ARTICULADO 1901 PFTW62 Scania ARTICULADO 1902 PFVG75 Scania ARTICULADO 1903 PFVG76 Scania ARTICULADO 1904 PFVG77 Scania ARTICULADO 1707 PFVG78 Scania RIGIDO 1881 PFVG79 Scania RIGIDO 1708 PFVG80 Scania RIGIDO 1709 PFVG82 Scania RIGIDO 1710 PFVG83 Scania RIGIDO 1711 PFVG85 Scania RIGIDO 1712 PFVG86 Scania RIGIDO 1713 PFVG87 Scania RIGIDO 1714 PFVG88 Scania RIGIDO 1905 PFVG89 Scania ARTICULADO 1906 PFVG90 Scania ARTICULADO 1907 PFVG92 Scania ARTICULADO 1909 PFVG94 Scania ARTICULADO 1910 PFVG95 Scania ARTICULADO 1911 PFVG96 Scania ARTICULADO 1715 PFVG97 Scania RIGIDO 1716 PFVG98 Scania RIGIDO 1717 PFVG99 Scania RIGIDO 1882 PFVH10 Scania RIGIDO 1883 PFVH11 Scania RIGIDO 1718 PFVH12 Scania RIGIDO 1719 PFVH13 Scania RIGIDO 1884 PFVH14 Scania RIGIDO 1720 PFVH15 Scania RIGIDO 1721 PFYC13 Scania ARTICULADO 1722 PFYC14 Scania ARTICULADO 1723 PFYC16 Scania ARTICULADO 1724 PFYC17 Scania ARTICULADO 1725 PFYC19 Scania RIGIDO 1726 PFYC20 Scania RIGIDO 1727 PFYC25 Scania RIGIDO 1728 PFYC26 Scania ARTICULADO 1729 PFYC27 Scania RIGIDO 1730 PFYC28 Scania RIGIDO 1731 PFYC29 Scania RIGIDO 1732 PFYC31 Scania RIGIDO 1733 PFYC32 Scania RIGIDO 1734 PFYC33 Scania RIGIDO 1735 PFYC34 Scania RIGIDO 1736 PFYC35 Scania RIGIDO 1737 PFYC36 Scania RIGIDO 1738 PFYC37 Scania ARTICULADO 1739 PFYC43 Scania RIGIDO 1740 PFYC44 Scania RIGIDO 1741 PFYC46 Scania ARTICULADO 1742 PFYC49 Scania RIGIDO 1743 PFYC50 Scania ARTICULADO 1744 PFYC53 Scania RIGIDO 1745 PFYC55 Scania RIGIDO 1912 PFYC57 Scania RIGIDO 1746 PFYC58 Scania ARTICULADO 1748 PFYC60 Scania RIGIDO 1749 PFYC61 Scania ARTICULADO 1752 PFYC64 Scania ARTICULADO 1753 PFYC65 Scania RIGIDO 1922 PFYC66 Scania RIGIDO 1754 PFYC68 Scania ARTICULADO 1755 PFYC69 Scania ARTICULADO 1756 PFYC70 Scania ARTICULADO 1757 PFYC72 Scania RIGIDO 1923 PFYC75 Scania RIGIDO 1924 PFYC76 Scania RIGIDO 1913 PFYC77 Scania RIGIDO 1758 PFYC79 Scania ARTICULADO 1933 PFYC80 Scania ARTICULADO 1759 PFYC81 Scania ARTICULADO 1761 PFYC85 Scania ARTICULADO 1914 PFYC88 Scania RIGIDO 1915 PFYC90 Scania RIGIDO 1762 PFZK83 Scania ARTICULADO 1927 PFZK91 Scania ARTICULADO 1928 PGBF59 Scania ARTICULADO 1916 PGBY67 Scania RIGIDO 1929 PGBY72 Scania ARTICULADO 1930 PGBY73 Scania ARTICULADO 1774 PGBY83 Scania ARTICULADO 1781 PGKP67 Scania RIGIDO 1782 PGLD42 Scania RIGIDO 1917 PGLD67 Scania RIGIDO 1918 PGRZ67 Scania RIGIDO 1925 PGTT95 Scania RIGIDO 1926 PGTV12 Scania RIGIDO 1791 PGWT98 Scania RIGIDO 911 SHCV78 Volvo RIGIDO 916 SHCV83 Volvo RIGIDO 922 SHCX39 Volvo RIGIDO 936 SHCY22 Volvo RIGIDO 942 SHCY28 Volvo RIGIDO 1455 SHXD75 Volvo RIGIDO 1456 SHXD77 Volvo RIGIDO 1457 SHXD79 Volvo RIGIDO 1459 SHXD85 Volvo RIGIDO 1460 SHXF13 Volvo RIGIDO 1461 SHXF14 Volvo RIGIDO 1462 SHXF29 Volvo RIGIDO 1463 SHXF31 Volvo RIGIDO 1465 SHXF84 Volvo RIGIDO 1466 SHXF85 Volvo RIGIDO 1467 SHXF87 Volvo RIGIDO 1468 SHXF88 Volvo RIGIDO 1469 SHXF90 Volvo RIGIDO 1470 SHXF92 Volvo RIGIDO 1471 SHXF93 Volvo RIGIDO 1472 SHXF97 Volvo RIGIDO 1475 SHXG36 Volvo RIGIDO 1476 SHXG38 Volvo RIGIDO 1606 SJPB21 Volvo RIGIDO 1610 SJPB25 Volvo RIGIDO 1636 SJPC73 Volvo RIGIDO 1644 SJPC84 Volvo RIGIDO 1646 SJPD41 Volvo RIGIDO 1647 SJPD42 Volvo RIGIDO 1648 SJPD43 Volvo RIGIDO 1649 SJPD44 Volvo RIGIDO 1650 SJPD45 Volvo RIGIDO 1655 SJPD71 Volvo RIGIDO 1656 SJPD72 Volvo RIGIDO 1663 SJPD97 Volvo RIGIDO 1667 SJPF43 Volvo RIGIDO 1668 SJPF44 Volvo RIGIDO 1682 SKPH70 Volvo RIGIDO 1684 SKPH73 Volvo RIGIDO 1822 SKPJ90 Volvo RIGIDO 1823 SKPK18 Volvo RIGIDO 1824 SKPK19 Volvo RIGIDO 1825 SKPK20 Volvo RIGIDO 1826 SKPK21 Volvo RIGIDO 1827 SKPK22 Volvo RIGIDO 1828 SKPK23 Volvo RIGIDO 1829 SKPK25 Volvo RIGIDO 1830 SKPK26 Volvo RIGIDO 1831 SKPK27 Volvo RIGIDO 1832 SKPK28 Volvo RIGIDO 1834 SKPK31 Volvo RIGIDO 1835 SKPK32 Volvo RIGIDO 1837 SKPK34 Volvo RIGIDO 1838 SKPK35 Volvo RIGIDO 1839 SKPK37 Volvo RIGIDO 1840 SKPK39 Volvo RIGIDO 1841 SKPK40 Volvo RIGIDO 1843 SKPK42 Volvo RIGIDO 1844 SKPK44 Volvo RIGIDO 1845 SKPK45 Volvo RIGIDO 1846 SKPK62 Volvo RIGIDO 1847 SKPK63 Volvo RIGIDO 1848 SKPL28 Volvo RIGIDO 1849 SKPL30 Volvo RIGIDO 1850 SKPL33 Volvo RIGIDO 1851 SKPL34 Volvo RIGIDO 1852 SKPL36 Volvo RIGIDO
@@ -1222,9 +1235,12 @@ N° Interno PPU Marca chasis N° plazas 1919 LXWP57 Scania RIGIDO 1931 LXWP58 Sc
     const fleet = parseFleet(FLEET_RAW).sort((a, b) => a.internal - b.internal);
     const fleetByInternal = new Map(fleet.map((u) => [String(u.internal), u]));
     const fleetByPPU = new Map(fleet.map((u) => [u.ppu, u]));
-    let records = loadRecords();
+    let supabaseClient = null;
+    let storageMode = 'local';
+    let records = [];
     let currentNormDefs = [];
     let currentNormState = {};
+    const duplicateAlertKeys = { live: '', quick: '' };
 
     const refs = {
       metaDate: document.getElementById('meta-date'),
@@ -1270,21 +1286,34 @@ N° Interno PPU Marca chasis N° plazas 1919 LXWP57 Scania RIGIDO 1931 LXWP58 Sc
       normNoneCount: document.getElementById('norm-none-count')
     };
 
-    init();
+    init().catch((error) => {
+      console.error(error);
+      toast('Error crítico iniciando la app.', 'err');
+    });
 
-    function init() {
+    async function init() {
       setupDateMeta();
       setupTabs();
       buildDatalists();
       bindEvents();
       hydrateInspector();
       buildNormChecklist('RIGIDO');
+      supabaseClient = await initSupabaseClient();
+      records = await loadRecords();
       refreshAll();
 
       if (!fleet.length) {
         toast('No se pudo cargar la flota maestra.', 'err');
       } else {
         toast(`Flota maestra cargada: ${fleet.length} unidades.`, 'ok');
+      }
+
+      if (storageMode === 'supabase') {
+        toast(`Registros cargados desde Supabase (${SUPABASE_TABLE}).`, 'ok');
+      } else if (HAS_SUPABASE_CREDS) {
+        toast('Supabase no respondió. Se usa modo local temporal.', 'warn');
+      } else {
+        toast('Supabase no configurado. Se usa almacenamiento local.', 'warn');
       }
     }
 
@@ -1318,8 +1347,9 @@ N° Interno PPU Marca chasis N° plazas 1919 LXWP57 Scania RIGIDO 1931 LXWP58 Sc
 
       refs.form.addEventListener('submit', onSaveRecord);
       document.getElementById('btn-reset-form').addEventListener('click', () => resetForm(false));
-      document.getElementById('btn-export-records').addEventListener('click', exportRecordsCSV);
-      document.getElementById('btn-export-fleet').addEventListener('click', exportFleetCSV);
+      document.getElementById('btn-export-records').addEventListener('click', exportRecordsXLSX);
+      document.getElementById('btn-export-fleet').addEventListener('click', exportFleetXLSX);
+      document.getElementById('btn-export-pending-pdf').addEventListener('click', exportPendingPDF);
       document.getElementById('btn-quick-check').addEventListener('click', onQuickCheck);
 
       refs.fleetSearch.addEventListener('input', renderFleetTable);
@@ -1478,16 +1508,34 @@ N° Interno PPU Marca chasis N° plazas 1919 LXWP57 Scania RIGIDO 1931 LXWP58 Sc
     }
 
     function updateLiveCuadre() {
-      const result = evaluateCuadre(refs.inputInternal.value.trim(), refs.inputPPU.value.trim().toUpperCase());
+      const internal = refs.inputInternal.value.trim();
+      const ppu = refs.inputPPU.value.trim().toUpperCase();
+      const duplicate = findWeeklyDuplicateRecord(internal, ppu);
+      if (duplicate) {
+        paintCuadreResult(refs.cuadreLive, buildDuplicateResult(duplicate));
+        notifyDuplicateOnce(duplicate, 'live');
+        return;
+      }
+      duplicateAlertKeys.live = '';
+      const result = evaluateCuadre(internal, ppu);
       paintCuadreResult(refs.cuadreLive, result);
     }
 
     function onQuickCheck() {
-      const result = evaluateCuadre(refs.quickInternal.value.trim(), refs.quickPPU.value.trim().toUpperCase());
+      const internal = refs.quickInternal.value.trim();
+      const ppu = refs.quickPPU.value.trim().toUpperCase();
+      const duplicate = findWeeklyDuplicateRecord(internal, ppu);
+      if (duplicate) {
+        paintCuadreResult(refs.quickResult, buildDuplicateResult(duplicate));
+        notifyDuplicateOnce(duplicate, 'quick');
+        return;
+      }
+      duplicateAlertKeys.quick = '';
+      const result = evaluateCuadre(internal, ppu);
       paintCuadreResult(refs.quickResult, result);
     }
 
-    function onSaveRecord(event) {
+    async function onSaveRecord(event) {
       event.preventDefault();
       const internal = refs.inputInternal.value.trim();
       const ppu = refs.inputPPU.value.trim().toUpperCase();
@@ -1496,6 +1544,22 @@ N° Interno PPU Marca chasis N° plazas 1919 LXWP57 Scania RIGIDO 1931 LXWP58 Sc
 
       if (!internal || !ppu || !inspector) {
         toast('Completa N° interno, PPU e inspector.', 'warn');
+        return;
+      }
+
+      const duplicate = findWeeklyDuplicateRecord(internal, ppu);
+      if (duplicate) {
+        const duplicateResult = buildDuplicateResult(duplicate);
+        paintCuadreResult(refs.cuadreLive, duplicateResult);
+        toast('Ese bus ya fue revisado esta semana. No se guardó duplicado.', 'warn');
+        return;
+      }
+
+      const remoteDuplicate = await findWeeklyDuplicateRecordOnServer(internal, ppu, getISOWeek(new Date()));
+      if (remoteDuplicate) {
+        const duplicateResult = buildDuplicateResult(remoteDuplicate);
+        paintCuadreResult(refs.cuadreLive, duplicateResult);
+        toast('Ese bus ya fue revisado en Supabase esta semana. No se guardó duplicado.', 'warn');
         return;
       }
 
@@ -1532,9 +1596,16 @@ N° Interno PPU Marca chasis N° plazas 1919 LXWP57 Scania RIGIDO 1931 LXWP58 Sc
         norma_qr: normSummary.qr
       };
 
+      const persisted = await persistRecord(newRecord);
+      if (!persisted.ok) {
+        console.error(persisted.error);
+        toast('No se pudo guardar en Supabase. Revisa URL, API key, tabla y políticas RLS.', 'err');
+        return;
+      }
+
       localStorage.setItem(INSPECTOR_KEY, inspector);
       records.unshift(newRecord);
-      saveRecords(records);
+      saveRecordsLocal(records);
       refreshAll();
       resetForm(true);
       toast('Inspección guardada correctamente.', 'ok');
@@ -1550,6 +1621,7 @@ N° Interno PPU Marca chasis N° plazas 1919 LXWP57 Scania RIGIDO 1931 LXWP58 Sc
       if (keepInspector && inspector) refs.inputInspector.value = inspector;
       else hydrateInspector();
       buildNormChecklist('RIGIDO');
+      duplicateAlertKeys.live = '';
       paintCuadreResult(refs.cuadreLive, {
         ok: false,
         kind: 'incomplete',
@@ -1760,17 +1832,19 @@ N° Interno PPU Marca chasis N° plazas 1919 LXWP57 Scania RIGIDO 1931 LXWP58 Sc
       const typeFilter = refs.fleetType.value;
       const statusFilter = refs.fleetWeekStatus.value;
 
-      const filtered = fleet.filter((u) => {
-        const matchQuery = !q || String(u.internal).includes(q) || u.ppu.includes(q);
-        const matchBrand = brandFilter === 'ALL' || u.brand === brandFilter;
-        const matchType = typeFilter === 'ALL' || u.type === typeFilter;
-        const isDone = checkedSet.has(String(u.internal));
-        const matchStatus =
-          statusFilter === 'ALL' ||
-          (statusFilter === 'DONE' && isDone) ||
-          (statusFilter === 'PENDING' && !isDone);
-        return matchQuery && matchBrand && matchType && matchStatus;
-      });
+      const filtered = fleet
+        .filter((u) => {
+          const matchQuery = !q || String(u.internal).includes(q) || u.ppu.includes(q);
+          const matchBrand = brandFilter === 'ALL' || u.brand === brandFilter;
+          const matchType = typeFilter === 'ALL' || u.type === typeFilter;
+          const isDone = checkedSet.has(String(u.internal));
+          const matchStatus =
+            statusFilter === 'ALL' ||
+            (statusFilter === 'DONE' && isDone) ||
+            (statusFilter === 'PENDING' && !isDone);
+          return matchQuery && matchBrand && matchType && matchStatus;
+        })
+        .sort((a, b) => a.ppu.localeCompare(b.ppu, 'es', { sensitivity: 'base' }));
 
       if (!filtered.length) {
         refs.fleetTableWrap.innerHTML = '<div style="padding:14px;color:#667a9b;">No hay unidades con ese filtro.</div>';
@@ -1822,6 +1896,16 @@ N° Interno PPU Marca chasis N° plazas 1919 LXWP57 Scania RIGIDO 1931 LXWP58 Sc
             createdAt: r.createdAt
           });
         }
+
+        if ((r.norm_bad || 0) > 0) {
+          issues.push({
+            type: 'NORMAS_CON_FALLA',
+            internal: r.internal,
+            ppu: r.ppu,
+            detail: `Registro con ${r.norm_bad} norma(s) en mal estado.`,
+            createdAt: r.createdAt
+          });
+        }
       });
 
       const perWeekBusCount = records
@@ -1866,9 +1950,15 @@ N° Interno PPU Marca chasis N° plazas 1919 LXWP57 Scania RIGIDO 1931 LXWP58 Sc
             </tr>
           </thead>
           <tbody>
-            ${issues.slice(0, 200).map((issue) => `
+            ${issues
+              .sort((a, b) => {
+                const ppuA = String(a.ppu || '').toUpperCase();
+                const ppuB = String(b.ppu || '').toUpperCase();
+                return ppuA.localeCompare(ppuB, 'es', { sensitivity: 'base' });
+              })
+              .map((issue) => `
               <tr>
-                <td>${issue.type === 'DUPLICADO_SEMANAL' ? '<span class="badge pending">Duplicado Semana</span>' : '<span class="badge warn">Cuadre Inválido</span>'}</td>
+                <td>${renderIssueTypeBadge(issue.type)}</td>
                 <td>${issue.internal}</td>
                 <td>${issue.ppu}</td>
                 <td>${issue.detail}</td>
@@ -1878,6 +1968,47 @@ N° Interno PPU Marca chasis N° plazas 1919 LXWP57 Scania RIGIDO 1931 LXWP58 Sc
           </tbody>
         </table>
       `;
+    }
+
+    function renderIssueTypeBadge(type) {
+      if (type === 'DUPLICADO_SEMANAL') return '<span class="badge pending">Duplicado Semana</span>';
+      if (type === 'NORMAS_CON_FALLA') return '<span class="badge pending">Normas Con Falla</span>';
+      return '<span class="badge warn">Cuadre Inválido</span>';
+    }
+
+    function findWeeklyDuplicateRecord(internalValue, ppuValue) {
+      const week = getISOWeek(new Date());
+      const internal = String(internalValue || '').trim();
+      const ppu = String(ppuValue || '').trim().toUpperCase();
+      if (!internal && !ppu) return null;
+
+      return records.find((record) => {
+        if (record.week !== week) return false;
+        const sameInternal = internal && String(record.internal) === internal;
+        const samePPU = ppu && String(record.ppu || '').toUpperCase() === ppu;
+        return sameInternal || samePPU;
+      }) || null;
+    }
+
+    function buildDuplicateResult(duplicateRecord) {
+      const created = new Date(duplicateRecord.createdAt);
+      const validDate = !Number.isNaN(created.getTime());
+      const when = validDate
+        ? `${created.toLocaleDateString('es-CL')} ${created.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}`
+        : duplicateRecord.createdAt;
+      return {
+        ok: false,
+        kind: 'bad',
+        title: 'Bus ya revisado esta semana',
+        message: `Ya existe registro para ${duplicateRecord.internal} · ${duplicateRecord.ppu} en ${duplicateRecord.week} (${when}). Inspector: ${duplicateRecord.inspector || 'N/D'}.`
+      };
+    }
+
+    function notifyDuplicateOnce(duplicateRecord, channel) {
+      const key = `${duplicateRecord.week}|${duplicateRecord.internal}|${duplicateRecord.ppu}`;
+      if (duplicateAlertKeys[channel] === key) return;
+      duplicateAlertKeys[channel] = key;
+      toast(`Alerta: bus ${duplicateRecord.internal} (${duplicateRecord.ppu}) ya fue revisado en ${duplicateRecord.week}.`, 'warn');
     }
 
     function evaluateCuadre(internalValue, ppuValue) {
@@ -1966,18 +2097,145 @@ N° Interno PPU Marca chasis N° plazas 1919 LXWP57 Scania RIGIDO 1931 LXWP58 Sc
       return parsed;
     }
 
-    function loadRecords() {
+    async function initSupabaseClient() {
+      if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
+      if (!window.supabase || typeof window.supabase.createClient !== 'function') return null;
+
+      const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      try {
+        const { error } = await client.from(SUPABASE_TABLE).select('*', { head: true, count: 'exact' });
+        if (error) {
+          console.error('Supabase ping error:', error);
+          return null;
+        }
+      } catch (error) {
+        console.error('Supabase init exception:', error);
+        return null;
+      }
+      return client;
+    }
+
+    async function loadRecords() {
+      if (!supabaseClient) {
+        storageMode = 'local';
+        return loadRecordsLocal();
+      }
+
+      const remote = await loadRecordsFromSupabase();
+      if (!remote.ok) {
+        console.error('Load records Supabase error:', remote.error);
+        storageMode = 'local';
+        return loadRecordsLocal();
+      }
+
+      storageMode = 'supabase';
+      saveRecordsLocal(remote.records);
+      return remote.records;
+    }
+
+    async function loadRecordsFromSupabase() {
+      try {
+        let query = await supabaseClient
+          .from(SUPABASE_TABLE)
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (query.error) {
+          query = await supabaseClient
+            .from(SUPABASE_TABLE)
+            .select('*')
+            .order('createdAt', { ascending: false });
+        }
+
+        if (query.error) return { ok: false, error: query.error };
+        const items = Array.isArray(query.data) ? query.data.map(normalizeRecordFromSupabase) : [];
+        const valid = items
+          .filter((r) => r.internal && r.ppu)
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        return { ok: true, records: valid };
+      } catch (error) {
+        return { ok: false, error };
+      }
+    }
+
+    function normalizeRecordFromSupabase(row) {
+      const createdAt = row.created_at || row.createdAt || new Date().toISOString();
+      const parsedDate = new Date(createdAt);
+      const derivedWeek = row.week || (Number.isNaN(parsedDate.getTime()) ? getISOWeek(new Date()) : getISOWeek(parsedDate));
+      return {
+        id: row.id || makeId(),
+        createdAt,
+        week: derivedWeek,
+        internal: String(row.internal ?? row.n_interno ?? row.interno ?? '').trim(),
+        ppu: String(row.ppu || '').trim().toUpperCase(),
+        brand: row.brand || row.marca || '',
+        type: String(row.type || row.tipo || '').toUpperCase(),
+        inspector: row.inspector || '',
+        notes: row.notes || row.observaciones || '',
+        cuadreOk: typeof row.cuadre_ok === 'boolean' ? row.cuadre_ok : (row.cuadreOk !== false),
+        norm_total: row.norm_total ?? row.normTotal ?? 0,
+        norm_ok: row.norm_ok ?? row.normOk ?? 0,
+        norm_bad: row.norm_bad ?? row.normBad ?? 0,
+        norma_general: row.norma_general || row.normaGeneral || {},
+        norma_wifi: row.norma_wifi || row.normaWifi || {},
+        norma_qr: row.norma_qr || row.normaQr || {}
+      };
+    }
+
+    async function persistRecord(record) {
+      if (!supabaseClient) {
+        storageMode = 'local';
+        return { ok: true, mode: 'local' };
+      }
+
+      try {
+        const { error } = await supabaseClient
+          .from(SUPABASE_TABLE)
+          .insert(toSupabaseRecord(record));
+        if (error) return { ok: false, error };
+        storageMode = 'supabase';
+        return { ok: true, mode: 'supabase' };
+      } catch (error) {
+        return { ok: false, error };
+      }
+    }
+
+    function toSupabaseRecord(record) {
+      return {
+        id: record.id,
+        created_at: record.createdAt,
+        week: record.week,
+        internal: record.internal,
+        ppu: record.ppu,
+        brand: record.brand,
+        type: record.type,
+        inspector: record.inspector,
+        notes: record.notes,
+        cuadre_ok: record.cuadreOk,
+        norm_total: record.norm_total,
+        norm_ok: record.norm_ok,
+        norm_bad: record.norm_bad,
+        norma_general: record.norma_general,
+        norma_wifi: record.norma_wifi,
+        norma_qr: record.norma_qr
+      };
+    }
+
+    function loadRecordsLocal() {
       try {
         const raw = localStorage.getItem(STORAGE_KEY);
         if (!raw) return [];
         const parsed = JSON.parse(raw);
-        return Array.isArray(parsed) ? parsed : [];
+        if (!Array.isArray(parsed)) return [];
+        return parsed
+          .map((row) => normalizeRecordFromSupabase(row))
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       } catch (error) {
         return [];
       }
     }
 
-    function saveRecords(items) {
+    function saveRecordsLocal(items) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
     }
 
