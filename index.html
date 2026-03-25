@@ -1207,15 +1207,19 @@
 
   <script>
     const STORAGE_KEY = 'registro_profesional_flotav2';
-    const SUPABASE_URL = String(window.SUPABASE_URL || localStorage.getItem('supabase_url') || 'https://wvcplgwemvqhvtstlqmt.supabase.co').trim();
-    const SUPABASE_ANON_KEY = String(
-      window.SUPABASE_ANON_KEY
-      || localStorage.getItem('supabase_anon_key')
-      || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind2Y3BsZ3dlbXZxaHZ0c3RscW10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAzNjIyMDUsImV4cCI6MjA3NTkzODIwNX0.K1YOv5lRn9fOous3AyG2gPxsQBzqOXRfYHgrCmO5zxk'
-    ).trim();
-    const supabaseTableRaw = String(window.SUPABASE_TABLE || localStorage.getItem('supabase_table') || 'inspecciones').trim();
-    const SUPABASE_TABLE = supabaseTableRaw === 'registros_profesionales' ? 'inspecciones' : supabaseTableRaw;
+    const SUPABASE_DEFAULT_URL = 'https://wvcplgwemvqhvtstlqmt.supabase.co';
+    const SUPABASE_DEFAULT_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind2Y3BsZ3dlbXZxaHZ0c3RscW10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAzNjIyMDUsImV4cCI6MjA3NTkzODIwNX0.K1YOv5lRn9fOous3AyG2gPxsQBzqOXRfYHgrCmO5zxk';
+    const SUPABASE_DEFAULT_TABLE = 'revisiones';
+    const SUPABASE_CONFIG = resolveSupabaseConfig({
+      url: window.SUPABASE_URL || localStorage.getItem('supabase_url') || SUPABASE_DEFAULT_URL,
+      anonKey: window.SUPABASE_ANON_KEY || localStorage.getItem('supabase_anon_key') || SUPABASE_DEFAULT_ANON_KEY,
+      table: window.SUPABASE_TABLE || localStorage.getItem('supabase_table') || SUPABASE_DEFAULT_TABLE
+    });
+    const SUPABASE_URL = SUPABASE_CONFIG.url;
+    const SUPABASE_ANON_KEY = SUPABASE_CONFIG.anonKey;
+    const SUPABASE_TABLE = SUPABASE_CONFIG.table;
     const HAS_SUPABASE_CREDS = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
+    const SUPABASE_REQUIRED = true;
 
     const FLEET_RAW = `
 N° Interno PPU Marca chasis N° plazas 1919 LXWP57 Scania RIGIDO 1931 LXWP58 Scania ARTICULADO 1932 LXWP59 Scania ARTICULADO 1885 LXWP60 Scania ARTICULADO 1920 LXWP61 Scania RIGIDO 1921 LXWP62 Scania RIGIDO 1886 LXWP64 Scania ARTICULADO 1693 LXWP66 Scania RIGIDO 1854 LXWP67 Scania RIGIDO 1855 LXWP68 Scania RIGIDO 1856 LXWP69 Scania RIGIDO 1857 LXWP70 Scania RIGIDO 1858 LXWP71 Scania RIGIDO 1859 LXWP72 Scania RIGIDO 1860 LXWP73 Scania RIGIDO 1861 LXWP74 Scania RIGIDO 1862 LXWP75 Scania RIGIDO 1694 LXWP76 Scania RIGIDO 1695 LXWP77 Scania RIGIDO 1863 LXWP78 Scania RIGIDO 1864 LXWP79 Scania RIGIDO 1865 LXWP80 Scania RIGIDO 1696 LXWP81 Scania RIGIDO 1866 LXWP82 Scania RIGIDO 1867 LXWP83 Scania RIGIDO 1697 LXWP85 Scania RIGIDO 1698 LXWP86 Scania RIGIDO 1888 LXWP87 Scania ARTICULADO 1699 PFTV77 Scania RIGIDO 1889 PFTW19 Scania ARTICULADO 1890 PFTW20 Scania ARTICULADO 1700 PFTW25 Scania ARTICULADO 1891 PFTW26 Scania ARTICULADO 1868 PFTW28 Scania RIGIDO 1869 PFTW29 Scania RIGIDO 1870 PFTW30 Scania RIGIDO 1871 PFTW31 Scania RIGIDO 1701 PFTW32 Scania RIGIDO 1872 PFTW34 Scania RIGIDO 1892 PFTW35 Scania ARTICULADO 1702 PFTW36 Scania RIGIDO 1873 PFTW38 Scania RIGIDO 1893 PFTW39 Scania ARTICULADO 1703 PFTW40 Scania RIGIDO 1894 PFTW41 Scania ARTICULADO 1895 PFTW42 Scania ARTICULADO 1874 PFTW44 Scania RIGIDO 1875 PFTW45 Scania RIGIDO 1704 PFTW46 Scania RIGIDO 1876 PFTW47 Scania RIGIDO 1896 PFTW48 Scania ARTICULADO 1877 PFTW49 Scania RIGIDO 1878 PFTW50 Scania RIGIDO 1897 PFTW51 Scania ARTICULADO 1898 PFTW55 Scania ARTICULADO 1879 PFTW56 Scania RIGIDO 1705 PFTW57 Scania RIGIDO 1880 PFTW58 Scania RIGIDO 1899 PFTW59 Scania ARTICULADO 1706 PFTW60 Scania ARTICULADO 1900 PFTW61 Scania ARTICULADO 1901 PFTW62 Scania ARTICULADO 1902 PFVG75 Scania ARTICULADO 1903 PFVG76 Scania ARTICULADO 1904 PFVG77 Scania ARTICULADO 1707 PFVG78 Scania RIGIDO 1881 PFVG79 Scania RIGIDO 1708 PFVG80 Scania RIGIDO 1709 PFVG82 Scania RIGIDO 1710 PFVG83 Scania RIGIDO 1711 PFVG85 Scania RIGIDO 1712 PFVG86 Scania RIGIDO 1713 PFVG87 Scania RIGIDO 1714 PFVG88 Scania RIGIDO 1905 PFVG89 Scania ARTICULADO 1906 PFVG90 Scania ARTICULADO 1907 PFVG92 Scania ARTICULADO 1909 PFVG94 Scania ARTICULADO 1910 PFVG95 Scania ARTICULADO 1911 PFVG96 Scania ARTICULADO 1715 PFVG97 Scania RIGIDO 1716 PFVG98 Scania RIGIDO 1717 PFVG99 Scania RIGIDO 1882 PFVH10 Scania RIGIDO 1883 PFVH11 Scania RIGIDO 1718 PFVH12 Scania RIGIDO 1719 PFVH13 Scania RIGIDO 1884 PFVH14 Scania RIGIDO 1720 PFVH15 Scania RIGIDO 1721 PFYC13 Scania ARTICULADO 1722 PFYC14 Scania ARTICULADO 1723 PFYC16 Scania ARTICULADO 1724 PFYC17 Scania ARTICULADO 1725 PFYC19 Scania RIGIDO 1726 PFYC20 Scania RIGIDO 1727 PFYC25 Scania RIGIDO 1728 PFYC26 Scania ARTICULADO 1729 PFYC27 Scania RIGIDO 1730 PFYC28 Scania RIGIDO 1731 PFYC29 Scania RIGIDO 1732 PFYC31 Scania RIGIDO 1733 PFYC32 Scania RIGIDO 1734 PFYC33 Scania RIGIDO 1735 PFYC34 Scania RIGIDO 1736 PFYC35 Scania RIGIDO 1737 PFYC36 Scania RIGIDO 1738 PFYC37 Scania ARTICULADO 1739 PFYC43 Scania RIGIDO 1740 PFYC44 Scania RIGIDO 1741 PFYC46 Scania ARTICULADO 1742 PFYC49 Scania RIGIDO 1743 PFYC50 Scania ARTICULADO 1744 PFYC53 Scania RIGIDO 1745 PFYC55 Scania RIGIDO 1912 PFYC57 Scania RIGIDO 1746 PFYC58 Scania ARTICULADO 1748 PFYC60 Scania RIGIDO 1749 PFYC61 Scania ARTICULADO 1752 PFYC64 Scania ARTICULADO 1753 PFYC65 Scania RIGIDO 1922 PFYC66 Scania RIGIDO 1754 PFYC68 Scania ARTICULADO 1755 PFYC69 Scania ARTICULADO 1756 PFYC70 Scania ARTICULADO 1757 PFYC72 Scania RIGIDO 1923 PFYC75 Scania RIGIDO 1924 PFYC76 Scania RIGIDO 1913 PFYC77 Scania RIGIDO 1758 PFYC79 Scania ARTICULADO 1933 PFYC80 Scania ARTICULADO 1759 PFYC81 Scania ARTICULADO 1761 PFYC85 Scania ARTICULADO 1914 PFYC88 Scania RIGIDO 1915 PFYC90 Scania RIGIDO 1762 PFZK83 Scania ARTICULADO 1927 PFZK91 Scania ARTICULADO 1928 PGBF59 Scania ARTICULADO 1916 PGBY67 Scania RIGIDO 1929 PGBY72 Scania ARTICULADO 1930 PGBY73 Scania ARTICULADO 1774 PGBY83 Scania ARTICULADO 1781 PGKP67 Scania RIGIDO 1782 PGLD42 Scania RIGIDO 1917 PGLD67 Scania RIGIDO 1918 PGRZ67 Scania RIGIDO 1925 PGTT95 Scania RIGIDO 1926 PGTV12 Scania RIGIDO 1791 PGWT98 Scania RIGIDO 911 SHCV78 Volvo RIGIDO 916 SHCV83 Volvo RIGIDO 922 SHCX39 Volvo RIGIDO 936 SHCY22 Volvo RIGIDO 942 SHCY28 Volvo RIGIDO 1455 SHXD75 Volvo RIGIDO 1456 SHXD77 Volvo RIGIDO 1457 SHXD79 Volvo RIGIDO 1459 SHXD85 Volvo RIGIDO 1460 SHXF13 Volvo RIGIDO 1461 SHXF14 Volvo RIGIDO 1462 SHXF29 Volvo RIGIDO 1463 SHXF31 Volvo RIGIDO 1465 SHXF84 Volvo RIGIDO 1466 SHXF85 Volvo RIGIDO 1467 SHXF87 Volvo RIGIDO 1468 SHXF88 Volvo RIGIDO 1469 SHXF90 Volvo RIGIDO 1470 SHXF92 Volvo RIGIDO 1471 SHXF93 Volvo RIGIDO 1472 SHXF97 Volvo RIGIDO 1475 SHXG36 Volvo RIGIDO 1476 SHXG38 Volvo RIGIDO 1606 SJPB21 Volvo RIGIDO 1610 SJPB25 Volvo RIGIDO 1636 SJPC73 Volvo RIGIDO 1644 SJPC84 Volvo RIGIDO 1646 SJPD41 Volvo RIGIDO 1647 SJPD42 Volvo RIGIDO 1648 SJPD43 Volvo RIGIDO 1649 SJPD44 Volvo RIGIDO 1650 SJPD45 Volvo RIGIDO 1655 SJPD71 Volvo RIGIDO 1656 SJPD72 Volvo RIGIDO 1663 SJPD97 Volvo RIGIDO 1667 SJPF43 Volvo RIGIDO 1668 SJPF44 Volvo RIGIDO 1682 SKPH70 Volvo RIGIDO 1684 SKPH73 Volvo RIGIDO 1822 SKPJ90 Volvo RIGIDO 1823 SKPK18 Volvo RIGIDO 1824 SKPK19 Volvo RIGIDO 1825 SKPK20 Volvo RIGIDO 1826 SKPK21 Volvo RIGIDO 1827 SKPK22 Volvo RIGIDO 1828 SKPK23 Volvo RIGIDO 1829 SKPK25 Volvo RIGIDO 1830 SKPK26 Volvo RIGIDO 1831 SKPK27 Volvo RIGIDO 1832 SKPK28 Volvo RIGIDO 1834 SKPK31 Volvo RIGIDO 1835 SKPK32 Volvo RIGIDO 1837 SKPK34 Volvo RIGIDO 1838 SKPK35 Volvo RIGIDO 1839 SKPK37 Volvo RIGIDO 1840 SKPK39 Volvo RIGIDO 1841 SKPK40 Volvo RIGIDO 1843 SKPK42 Volvo RIGIDO 1844 SKPK44 Volvo RIGIDO 1845 SKPK45 Volvo RIGIDO 1846 SKPK62 Volvo RIGIDO 1847 SKPK63 Volvo RIGIDO 1848 SKPL28 Volvo RIGIDO 1849 SKPL30 Volvo RIGIDO 1850 SKPL33 Volvo RIGIDO 1851 SKPL34 Volvo RIGIDO 1852 SKPL36 Volvo RIGIDO
@@ -1239,6 +1243,10 @@ N° Interno PPU Marca chasis N° plazas 1919 LXWP57 Scania RIGIDO 1931 LXWP58 Sc
     let supabaseClient = null;
     let storageMode = 'local';
     let supabaseLastError = null;
+    let supabaseInspectorByName = new Map();
+    let supabaseDefaultInspector = { rut: '11.629.613-6', nombre: 'Juan Nahuelpan' };
+    let supabaseTerminalByPPU = new Map();
+    let supabaseTerminalByInternal = new Map();
     let records = [];
     let currentNormDefs = [];
     let currentNormState = {};
@@ -1301,6 +1309,7 @@ N° Interno PPU Marca chasis N° plazas 1919 LXWP57 Scania RIGIDO 1931 LXWP58 Sc
       hydrateInspector();
       buildNormChecklist('RIGIDO');
       supabaseClient = await initSupabaseClient();
+      await hydrateSupabaseReferenceData();
       records = await loadRecords();
       refreshAll();
 
@@ -1312,6 +1321,8 @@ N° Interno PPU Marca chasis N° plazas 1919 LXWP57 Scania RIGIDO 1931 LXWP58 Sc
 
       if (storageMode === 'supabase') {
         toast(`Registros cargados desde Supabase (${SUPABASE_TABLE}).`, 'ok');
+      } else if (storageMode === 'supabase_error') {
+        toast(`Supabase no disponible: ${formatSupabaseError(supabaseLastError)}`, 'err');
       } else if (HAS_SUPABASE_CREDS) {
         if (supabaseLastError && supabaseLastError.code === 'PGRST205') {
           toast(`Supabase conectado, pero no existe la tabla "${SUPABASE_TABLE}".`, 'err');
@@ -1320,6 +1331,10 @@ N° Interno PPU Marca chasis N° plazas 1919 LXWP57 Scania RIGIDO 1931 LXWP58 Sc
         }
       } else {
         toast('Supabase no configurado. Se usa almacenamiento local.', 'warn');
+      }
+
+      if (SUPABASE_CONFIG.mismatchDetected) {
+        toast('Se detectó conflicto entre URL y API key de Supabase; se restauró configuración válida.', 'warn');
       }
     }
 
@@ -1620,7 +1635,7 @@ N° Interno PPU Marca chasis N° plazas 1919 LXWP57 Scania RIGIDO 1931 LXWP58 Sc
       const persisted = await persistRecord(newRecord);
       if (!persisted.ok) {
         console.error(persisted.error);
-        toast('No se pudo guardar en Supabase. Revisa URL, API key, tabla y políticas RLS.', 'err');
+        toast(`No se pudo guardar. ${formatSupabaseError(persisted.error)}`, 'err');
         return;
       }
 
@@ -1629,7 +1644,11 @@ N° Interno PPU Marca chasis N° plazas 1919 LXWP57 Scania RIGIDO 1931 LXWP58 Sc
       saveRecordsLocal(records);
       refreshAll();
       resetForm(true);
-      toast('Inspección guardada correctamente.', 'ok');
+      if (persisted.mode === 'supabase') {
+        toast('Inspección guardada en Supabase.', 'ok');
+      } else {
+        toast('Inspección guardada.', 'ok');
+      }
     }
 
     function resetForm(keepInspector) {
@@ -2012,6 +2031,9 @@ N° Interno PPU Marca chasis N° plazas 1919 LXWP57 Scania RIGIDO 1931 LXWP58 Sc
     }
 
     function getSupabaseFieldMap() {
+      if (SUPABASE_TABLE === 'revisiones') {
+        return { week: 'semana_iso', internal: 'bus_interno', ppu: 'bus_ppu' };
+      }
       if (SUPABASE_TABLE === 'inspecciones') {
         return { week: 'semana', internal: 'num_interno', ppu: 'patente' };
       }
@@ -2159,8 +2181,159 @@ N° Interno PPU Marca chasis N° plazas 1919 LXWP57 Scania RIGIDO 1931 LXWP58 Sc
       return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     }
 
+    function normalizeSupabaseTableName(value) {
+      const table = String(value || '').trim();
+      if (!table) return SUPABASE_DEFAULT_TABLE;
+      if (table === 'registros_profesionales' || table === 'inspecciones') return 'revisiones';
+      return table;
+    }
+
+    function getProjectRefFromSupabaseUrl(url) {
+      const value = String(url || '').trim();
+      const match = value.match(/^https:\/\/([a-z0-9-]+)\.supabase\.co\/?$/i);
+      return match ? match[1] : '';
+    }
+
+    function decodeJwtPayload(token) {
+      try {
+        const payloadPart = String(token || '').split('.')[1];
+        if (!payloadPart) return null;
+        const normalized = payloadPart.replace(/-/g, '+').replace(/_/g, '/');
+        const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
+        const percentEncoded = atob(padded)
+          .split('')
+          .map((char) => `%${char.charCodeAt(0).toString(16).padStart(2, '0')}`)
+          .join('');
+        return JSON.parse(decodeURIComponent(percentEncoded));
+      } catch (error) {
+        return null;
+      }
+    }
+
+    function getProjectRefFromAnonKey(key) {
+      const payload = decodeJwtPayload(key);
+      if (!payload || typeof payload.ref !== 'string') return '';
+      return payload.ref.trim();
+    }
+
+    function resolveSupabaseConfig(rawConfig) {
+      const url = String(rawConfig.url || '').trim();
+      const anonKey = String(rawConfig.anonKey || '').trim();
+      const table = normalizeSupabaseTableName(rawConfig.table);
+
+      const urlRef = getProjectRefFromSupabaseUrl(url);
+      const keyRef = getProjectRefFromAnonKey(anonKey);
+      const mismatchDetected = Boolean(urlRef && keyRef && urlRef !== keyRef);
+      if (!mismatchDetected) return { url, anonKey, table, mismatchDetected: false };
+
+      const fallback = {
+        url: SUPABASE_DEFAULT_URL,
+        anonKey: SUPABASE_DEFAULT_ANON_KEY,
+        table: SUPABASE_DEFAULT_TABLE,
+        mismatchDetected: true
+      };
+
+      try {
+        localStorage.setItem('supabase_url', fallback.url);
+        localStorage.setItem('supabase_anon_key', fallback.anonKey);
+        localStorage.setItem('supabase_table', fallback.table);
+      } catch (error) {
+        // Ignora storage privado/bloqueado.
+      }
+      return fallback;
+    }
+
+    function normalizeNameKey(value) {
+      return String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toUpperCase();
+    }
+
+    function resolveInspectorIdentity(nameValue) {
+      const fallback = supabaseDefaultInspector || { rut: '11.629.613-6', nombre: 'Juan Nahuelpan' };
+      const inputName = String(nameValue || '').trim();
+      const key = normalizeNameKey(inputName);
+      const mapped = key ? supabaseInspectorByName.get(key) : null;
+      if (mapped && mapped.rut) {
+        return { rut: mapped.rut, nombre: inputName || mapped.nombre || fallback.nombre };
+      }
+      return { rut: fallback.rut, nombre: inputName || fallback.nombre };
+    }
+
+    function resolveTerminalForRecord(record) {
+      const byPPU = supabaseTerminalByPPU.get(String(record.ppu || '').toUpperCase());
+      if (byPPU) return byPPU;
+      const byInternal = supabaseTerminalByInternal.get(String(record.internal || '').trim());
+      if (byInternal) return byInternal;
+      return 'El Roble';
+    }
+
+    async function hydrateSupabaseReferenceData() {
+      if (!supabaseClient || SUPABASE_TABLE !== 'revisiones') return;
+      try {
+        const [inspectorsRes, flotaRes] = await Promise.all([
+          supabaseClient.from('usuarios').select('rut,nombre').limit(1000),
+          supabaseClient.from('flota').select('ppu,numero_interno,terminal').limit(3000)
+        ]);
+
+        if (!inspectorsRes.error && Array.isArray(inspectorsRes.data) && inspectorsRes.data.length) {
+          supabaseInspectorByName = new Map();
+          inspectorsRes.data.forEach((row) => {
+            const rut = String(row.rut || '').trim();
+            const nombre = String(row.nombre || '').trim();
+            if (!rut || !nombre) return;
+            supabaseInspectorByName.set(normalizeNameKey(nombre), { rut, nombre });
+          });
+          const first = inspectorsRes.data.find((row) => row.rut && row.nombre);
+          if (first) {
+            supabaseDefaultInspector = {
+              rut: String(first.rut).trim(),
+              nombre: String(first.nombre).trim()
+            };
+          }
+        }
+
+        if (!flotaRes.error && Array.isArray(flotaRes.data)) {
+          supabaseTerminalByPPU = new Map();
+          supabaseTerminalByInternal = new Map();
+          flotaRes.data.forEach((row) => {
+            const terminal = String(row.terminal || '').trim();
+            if (!terminal) return;
+            const ppu = String(row.ppu || '').trim().toUpperCase();
+            const internal = String(row.numero_interno || '').trim();
+            if (ppu) supabaseTerminalByPPU.set(ppu, terminal);
+            if (internal) supabaseTerminalByInternal.set(internal, terminal);
+          });
+        }
+      } catch (error) {
+        console.warn('No se pudo hidratar catálogo Supabase:', error);
+      }
+    }
+
+    function formatSupabaseError(error) {
+      if (!error) return 'Supabase no disponible por ahora.';
+      if (typeof error === 'string') return error;
+      const parts = [];
+      if (error.code) parts.push(`[${error.code}]`);
+      if (error.message) parts.push(String(error.message).trim());
+      else if (error.details) parts.push(String(error.details).trim());
+      else if (error.hint) parts.push(String(error.hint).trim());
+      else parts.push('Supabase no disponible por ahora.');
+      const text = parts.join(' ').trim();
+      if (text.length <= 180) return text;
+      return `${text.slice(0, 177)}...`;
+    }
+
     async function loadRecords() {
       if (!supabaseClient) {
+        if (HAS_SUPABASE_CREDS && SUPABASE_REQUIRED) {
+          storageMode = 'supabase_error';
+          supabaseLastError = new Error('Supabase client no disponible');
+          return [];
+        }
         storageMode = 'local';
         return loadRecordsLocal();
       }
@@ -2169,6 +2342,10 @@ N° Interno PPU Marca chasis N° plazas 1919 LXWP57 Scania RIGIDO 1931 LXWP58 Sc
       if (!remote.ok) {
         console.error('Load records Supabase error:', remote.error);
         supabaseLastError = remote.error;
+        if (SUPABASE_REQUIRED) {
+          storageMode = 'supabase_error';
+          return [];
+        }
         storageMode = 'local';
         return loadRecordsLocal();
       }
@@ -2207,49 +2384,89 @@ N° Interno PPU Marca chasis N° plazas 1919 LXWP57 Scania RIGIDO 1931 LXWP58 Sc
     function normalizeRecordFromSupabase(row) {
       const createdAt = row.created_at || row.createdAt || new Date().toISOString();
       const parsedDate = new Date(createdAt);
+      const meta = row.ip_info && typeof row.ip_info === 'object' ? row.ip_info : {};
       const derivedWeek = row.week || row.semana || row.semana_iso || (Number.isNaN(parsedDate.getTime()) ? getISOWeek(new Date()) : getISOWeek(parsedDate));
+      const internal = String(row.internal ?? row.n_interno ?? row.interno ?? row.num_interno ?? row.numero_interno ?? row.bus_interno ?? '').trim();
+      const ppu = String(row.ppu || row.patente || row.bus_ppu || '').trim().toUpperCase();
+      const unit = fleetByInternal.get(internal) || fleetByPPU.get(ppu);
       return {
         id: row.id || makeId(),
         createdAt,
         week: derivedWeek,
-        internal: String(row.internal ?? row.n_interno ?? row.interno ?? row.num_interno ?? row.numero_interno ?? row.bus_interno ?? '').trim(),
-        ppu: String(row.ppu || row.patente || row.bus_ppu || '').trim().toUpperCase(),
-        brand: row.brand || row.marca || row.marca_chasis || '',
-        type: String(row.type || row.tipo || row.tipo_bus || '').toUpperCase(),
+        internal,
+        ppu,
+        brand: row.brand || row.marca || row.marca_chasis || meta.brand || (unit ? unit.brand : ''),
+        type: String(row.type || row.tipo || row.tipo_bus || meta.type || (unit ? unit.type : '')).toUpperCase(),
         inspector: row.inspector || row.inspector_nombre || '',
         notes: row.notes || row.observaciones || row.observacion_general || '',
-        cuadreOk: typeof row.cuadre_ok === 'boolean' ? row.cuadre_ok : (row.cuadreOk !== false),
-        norm_total: row.norm_total ?? row.normTotal ?? 0,
-        norm_ok: row.norm_ok ?? row.normOk ?? 0,
-        norm_bad: row.norm_bad ?? row.normBad ?? 0,
-        norma_general: row.norma_general || row.normaGeneral || {},
-        norma_wifi: row.norma_wifi || row.normaWifi || {},
-        norma_qr: row.norma_qr || row.normaQr || {}
+        cuadreOk: typeof row.cuadre_ok === 'boolean' ? row.cuadre_ok : (typeof row.operativo === 'boolean' ? row.operativo : (meta.cuadre_ok !== false)),
+        norm_total: row.norm_total ?? row.normTotal ?? meta.norm_total ?? 0,
+        norm_ok: row.norm_ok ?? row.normOk ?? meta.norm_ok ?? 0,
+        norm_bad: row.norm_bad ?? row.normBad ?? meta.norm_bad ?? 0,
+        norma_general: row.norma_general || row.normaGeneral || meta.norma_general || {},
+        norma_wifi: row.norma_wifi || row.normaWifi || meta.norma_wifi || {},
+        norma_qr: row.norma_qr || row.normaQr || meta.norma_qr || {}
       };
     }
 
     async function persistRecord(record) {
       if (!supabaseClient) {
-        if (HAS_SUPABASE_CREDS) {
-          return { ok: false, error: new Error('Supabase client no disponible') };
-        }
-        storageMode = 'local';
-        return { ok: true, mode: 'local' };
+        storageMode = 'supabase_error';
+        return { ok: false, error: new Error('Supabase client no disponible') };
       }
 
       try {
         const { error } = await supabaseClient
           .from(SUPABASE_TABLE)
           .insert(toSupabaseRecord(record));
-        if (error) return { ok: false, error };
+        if (error) {
+          supabaseLastError = error;
+          storageMode = 'supabase_error';
+          return { ok: false, error };
+        }
+        supabaseLastError = null;
         storageMode = 'supabase';
         return { ok: true, mode: 'supabase' };
       } catch (error) {
+        supabaseLastError = error;
+        storageMode = 'supabase_error';
         return { ok: false, error };
       }
     }
 
     function toSupabaseRecord(record) {
+      if (SUPABASE_TABLE === 'revisiones') {
+        const inspectorIdentity = resolveInspectorIdentity(record.inspector);
+        const terminal = resolveTerminalForRecord(record);
+        return {
+          created_at: record.createdAt,
+          inspector_rut: inspectorIdentity.rut,
+          inspector_nombre: inspectorIdentity.nombre,
+          terminal_detectado: terminal,
+          terminal_reportado: terminal,
+          bus_ppu: record.ppu,
+          bus_interno: String(record.internal),
+          estado_bus: 'OPERATIVO',
+          lat: -33.45,
+          lon: -70.66,
+          observaciones: record.notes || null,
+          semana_iso: record.week,
+          operativo: true,
+          ip_info: {
+            source: 'registro_profesional_flotav2',
+            brand: record.brand || '',
+            type: record.type || '',
+            norma_general: record.norma_general || {},
+            norma_wifi: record.norma_wifi || {},
+            norma_qr: record.norma_qr || {},
+            norm_total: Number(record.norm_total || 0),
+            norm_ok: Number(record.norm_ok || 0),
+            norm_bad: Number(record.norm_bad || 0),
+            cuadre_ok: Boolean(record.cuadreOk)
+          }
+        };
+      }
+
       if (SUPABASE_TABLE === 'inspecciones') {
         return {
           created_at: record.createdAt,
