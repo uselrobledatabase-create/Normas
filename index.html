@@ -1213,7 +1213,8 @@
       || localStorage.getItem('supabase_anon_key')
       || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind2Y3BsZ3dlbXZxaHZ0c3RscW10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAzNjIyMDUsImV4cCI6MjA3NTkzODIwNX0.K1YOv5lRn9fOous3AyG2gPxsQBzqOXRfYHgrCmO5zxk'
     ).trim();
-    const SUPABASE_TABLE = String(window.SUPABASE_TABLE || localStorage.getItem('supabase_table') || 'registros_profesionales').trim();
+    const supabaseTableRaw = String(window.SUPABASE_TABLE || localStorage.getItem('supabase_table') || 'inspecciones').trim();
+    const SUPABASE_TABLE = supabaseTableRaw === 'registros_profesionales' ? 'inspecciones' : supabaseTableRaw;
     const HAS_SUPABASE_CREDS = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
 
     const FLEET_RAW = `
@@ -1237,6 +1238,7 @@ N° Interno PPU Marca chasis N° plazas 1919 LXWP57 Scania RIGIDO 1931 LXWP58 Sc
     const fleetByPPU = new Map(fleet.map((u) => [u.ppu, u]));
     let supabaseClient = null;
     let storageMode = 'local';
+    let supabaseLastError = null;
     let records = [];
     let currentNormDefs = [];
     let currentNormState = {};
@@ -1311,7 +1313,11 @@ N° Interno PPU Marca chasis N° plazas 1919 LXWP57 Scania RIGIDO 1931 LXWP58 Sc
       if (storageMode === 'supabase') {
         toast(`Registros cargados desde Supabase (${SUPABASE_TABLE}).`, 'ok');
       } else if (HAS_SUPABASE_CREDS) {
-        toast('Supabase no respondió. Se usa modo local temporal.', 'warn');
+        if (supabaseLastError && supabaseLastError.code === 'PGRST205') {
+          toast(`Supabase conectado, pero no existe la tabla "${SUPABASE_TABLE}".`, 'err');
+        } else {
+          toast('Supabase no respondió. Se usa modo local temporal.', 'warn');
+        }
       } else {
         toast('Supabase no configurado. Se usa almacenamiento local.', 'warn');
       }
@@ -1347,9 +1353,24 @@ N° Interno PPU Marca chasis N° plazas 1919 LXWP57 Scania RIGIDO 1931 LXWP58 Sc
 
       refs.form.addEventListener('submit', onSaveRecord);
       document.getElementById('btn-reset-form').addEventListener('click', () => resetForm(false));
-      document.getElementById('btn-export-records').addEventListener('click', exportRecordsXLSX);
-      document.getElementById('btn-export-fleet').addEventListener('click', exportFleetXLSX);
-      document.getElementById('btn-export-pending-pdf').addEventListener('click', exportPendingPDF);
+      const btnExportRecords = document.getElementById('btn-export-records');
+      const btnExportFleet = document.getElementById('btn-export-fleet');
+      const btnExportPendingPdf = document.getElementById('btn-export-pending-pdf');
+      if (btnExportRecords) {
+        btnExportRecords.addEventListener(
+          'click',
+          (typeof exportRecordsXLSX === 'function') ? exportRecordsXLSX : exportRecordsCSV
+        );
+      }
+      if (btnExportFleet) {
+        btnExportFleet.addEventListener(
+          'click',
+          (typeof exportFleetXLSX === 'function') ? exportFleetXLSX : exportFleetCSV
+        );
+      }
+      if (btnExportPendingPdf && typeof exportPendingPDF === 'function') {
+        btnExportPendingPdf.addEventListener('click', exportPendingPDF);
+      }
       document.getElementById('btn-quick-check').addEventListener('click', onQuickCheck);
 
       refs.fleetSearch.addEventListener('input', renderFleetTable);
@@ -1990,6 +2011,41 @@ N° Interno PPU Marca chasis N° plazas 1919 LXWP57 Scania RIGIDO 1931 LXWP58 Sc
       }) || null;
     }
 
+    function getSupabaseFieldMap() {
+      if (SUPABASE_TABLE === 'inspecciones') {
+        return { week: 'semana', internal: 'num_interno', ppu: 'patente' };
+      }
+      return { week: 'week', internal: 'internal', ppu: 'ppu' };
+    }
+
+    async function findWeeklyDuplicateRecordOnServer(internalValue, ppuValue, weekValue) {
+      if (!supabaseClient) return null;
+      const internal = String(internalValue || '').trim();
+      const ppu = String(ppuValue || '').trim().toUpperCase();
+      const week = String(weekValue || '').trim();
+      if (!internal && !ppu) return null;
+
+      const fields = getSupabaseFieldMap();
+      const orParts = [];
+      if (internal) orParts.push(`${fields.internal}.eq.${internal}`);
+      if (ppu) orParts.push(`${fields.ppu}.eq.${ppu}`);
+      if (!orParts.length) return null;
+
+      try {
+        const { data, error } = await supabaseClient
+          .from(SUPABASE_TABLE)
+          .select('*')
+          .eq(fields.week, week)
+          .or(orParts.join(','))
+          .limit(1);
+        if (error || !Array.isArray(data) || !data.length) return null;
+        return normalizeRecordFromSupabase(data[0]);
+      } catch (error) {
+        console.error('findWeeklyDuplicateRecordOnServer error:', error);
+        return null;
+      }
+    }
+
     function buildDuplicateResult(duplicateRecord) {
       const created = new Date(duplicateRecord.createdAt);
       const validDate = !Number.isNaN(created.getTime());
@@ -2100,19 +2156,7 @@ N° Interno PPU Marca chasis N° plazas 1919 LXWP57 Scania RIGIDO 1931 LXWP58 Sc
     async function initSupabaseClient() {
       if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
       if (!window.supabase || typeof window.supabase.createClient !== 'function') return null;
-
-      const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      try {
-        const { error } = await client.from(SUPABASE_TABLE).select('*', { head: true, count: 'exact' });
-        if (error) {
-          console.error('Supabase ping error:', error);
-          return null;
-        }
-      } catch (error) {
-        console.error('Supabase init exception:', error);
-        return null;
-      }
-      return client;
+      return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     }
 
     async function loadRecords() {
@@ -2124,10 +2168,12 @@ N° Interno PPU Marca chasis N° plazas 1919 LXWP57 Scania RIGIDO 1931 LXWP58 Sc
       const remote = await loadRecordsFromSupabase();
       if (!remote.ok) {
         console.error('Load records Supabase error:', remote.error);
+        supabaseLastError = remote.error;
         storageMode = 'local';
         return loadRecordsLocal();
       }
 
+      supabaseLastError = null;
       storageMode = 'supabase';
       saveRecordsLocal(remote.records);
       return remote.records;
@@ -2161,17 +2207,17 @@ N° Interno PPU Marca chasis N° plazas 1919 LXWP57 Scania RIGIDO 1931 LXWP58 Sc
     function normalizeRecordFromSupabase(row) {
       const createdAt = row.created_at || row.createdAt || new Date().toISOString();
       const parsedDate = new Date(createdAt);
-      const derivedWeek = row.week || (Number.isNaN(parsedDate.getTime()) ? getISOWeek(new Date()) : getISOWeek(parsedDate));
+      const derivedWeek = row.week || row.semana || row.semana_iso || (Number.isNaN(parsedDate.getTime()) ? getISOWeek(new Date()) : getISOWeek(parsedDate));
       return {
         id: row.id || makeId(),
         createdAt,
         week: derivedWeek,
-        internal: String(row.internal ?? row.n_interno ?? row.interno ?? '').trim(),
-        ppu: String(row.ppu || '').trim().toUpperCase(),
-        brand: row.brand || row.marca || '',
-        type: String(row.type || row.tipo || '').toUpperCase(),
-        inspector: row.inspector || '',
-        notes: row.notes || row.observaciones || '',
+        internal: String(row.internal ?? row.n_interno ?? row.interno ?? row.num_interno ?? row.numero_interno ?? row.bus_interno ?? '').trim(),
+        ppu: String(row.ppu || row.patente || row.bus_ppu || '').trim().toUpperCase(),
+        brand: row.brand || row.marca || row.marca_chasis || '',
+        type: String(row.type || row.tipo || row.tipo_bus || '').toUpperCase(),
+        inspector: row.inspector || row.inspector_nombre || '',
+        notes: row.notes || row.observaciones || row.observacion_general || '',
         cuadreOk: typeof row.cuadre_ok === 'boolean' ? row.cuadre_ok : (row.cuadreOk !== false),
         norm_total: row.norm_total ?? row.normTotal ?? 0,
         norm_ok: row.norm_ok ?? row.normOk ?? 0,
@@ -2184,6 +2230,9 @@ N° Interno PPU Marca chasis N° plazas 1919 LXWP57 Scania RIGIDO 1931 LXWP58 Sc
 
     async function persistRecord(record) {
       if (!supabaseClient) {
+        if (HAS_SUPABASE_CREDS) {
+          return { ok: false, error: new Error('Supabase client no disponible') };
+        }
         storageMode = 'local';
         return { ok: true, mode: 'local' };
       }
@@ -2201,6 +2250,26 @@ N° Interno PPU Marca chasis N° plazas 1919 LXWP57 Scania RIGIDO 1931 LXWP58 Sc
     }
 
     function toSupabaseRecord(record) {
+      if (SUPABASE_TABLE === 'inspecciones') {
+        return {
+          created_at: record.createdAt,
+          semana: record.week,
+          patente: record.ppu,
+          tipo_bus: record.type,
+          inspector: record.inspector,
+          observaciones: record.notes,
+          num_interno: record.internal,
+          marca_chasis: record.brand,
+          norma_general: record.norma_general,
+          norma_wifi: record.norma_wifi,
+          norma_qr: record.norma_qr,
+          norm_total: record.norm_total,
+          norm_ok: record.norm_ok,
+          norm_bad: record.norm_bad,
+          cuadre_ok: record.cuadreOk
+        };
+      }
+
       return {
         id: record.id,
         created_at: record.createdAt,
@@ -2308,6 +2377,159 @@ N° Interno PPU Marca chasis N° plazas 1919 LXWP57 Scania RIGIDO 1931 LXWP58 Sc
 
       downloadCSV('registros_profesionales.csv', headers, rows);
       toast('Registros exportados en CSV.', 'ok');
+    }
+
+    function exportFleetXLSX() {
+      if (!window.XLSX || !window.XLSX.utils) {
+        exportFleetCSV();
+        return;
+      }
+
+      const week = getISOWeek(new Date());
+      const weekRecords = records.filter((r) => r.week === week);
+      const checkedSet = new Set(weekRecords.map((r) => String(r.internal)));
+      const weekCountByInternal = weekRecords.reduce((acc, row) => {
+        acc[row.internal] = (acc[row.internal] || 0) + 1;
+        return acc;
+      }, {});
+
+      const headers = ['N_INTERNO', 'PPU', 'MARCA', 'TIPO_CHASIS', 'SEMANA', 'ESTADO_SEMANA', 'REGISTROS_SEMANA'];
+      const rows = [...fleet]
+        .sort((a, b) => a.ppu.localeCompare(b.ppu, 'es', { sensitivity: 'base' }))
+        .map((u) => [
+          u.internal,
+          u.ppu,
+          u.brand,
+          u.type,
+          week,
+          checkedSet.has(String(u.internal)) ? 'REGISTRADO' : 'PENDIENTE',
+          weekCountByInternal[u.internal] || 0
+        ]);
+
+      downloadXLSX('flota_maestra.xlsx', 'Flota', headers, rows);
+      toast('Flota exportada en XLSX.', 'ok');
+    }
+
+    function exportRecordsXLSX() {
+      if (!window.XLSX || !window.XLSX.utils) {
+        exportRecordsCSV();
+        return;
+      }
+      if (!records.length) {
+        toast('No hay registros para exportar.', 'warn');
+        return;
+      }
+
+      const headers = [
+        'ID',
+        'FECHA',
+        'SEMANA',
+        'N_INTERNO',
+        'PPU',
+        'MARCA',
+        'TIPO',
+        'INSPECTOR',
+        'CUADRE_OK',
+        'NORM_TOTAL',
+        'NORM_OK',
+        'NORM_BAD',
+        'NORMA_GENERAL',
+        'NORMA_WIFI',
+        'NORMA_QR',
+        'OBSERVACIONES'
+      ];
+
+      const rows = records.map((r) => [
+        r.id,
+        r.createdAt,
+        r.week,
+        r.internal,
+        r.ppu,
+        r.brand,
+        r.type,
+        r.inspector || '',
+        r.cuadreOk ? 'SI' : 'NO',
+        r.norm_total ?? 0,
+        r.norm_ok ?? 0,
+        r.norm_bad ?? 0,
+        JSON.stringify(r.norma_general || {}),
+        JSON.stringify(r.norma_wifi || {}),
+        JSON.stringify(r.norma_qr || {}),
+        sanitizeText(r.notes || '')
+      ]);
+
+      downloadXLSX('registros_flotas.xlsx', 'Registros', headers, rows);
+      toast('Registros exportados en XLSX.', 'ok');
+    }
+
+    function exportPendingPDF() {
+      if (!window.jspdf || typeof window.jspdf.jsPDF !== 'function') {
+        toast('No se pudo cargar generador PDF.', 'err');
+        return;
+      }
+
+      const pendingUnits = getPendingUnitsSortedByPPU();
+      if (!pendingUnits.length) {
+        toast('No hay pendientes para exportar.', 'warn');
+        return;
+      }
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      const week = getISOWeek(new Date());
+      const now = new Date();
+
+      doc.setFillColor(7, 20, 43);
+      doc.rect(0, 0, 297, 20, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.text(`Pendientes - ${week}`, 10, 8);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Generado: ${now.toLocaleDateString('es-CL')} ${now.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}`, 10, 14);
+      doc.text(`Total: ${pendingUnits.length}`, 287, 14, { align: 'right' });
+
+      const startY = 24;
+      const cols = 6;
+      const cellW = 46;
+      const cellH = 8.7;
+      pendingUnits.forEach((u, i) => {
+        const row = Math.floor(i / cols);
+        const col = i % cols;
+        const x = 10 + (col * cellW);
+        const y = startY + (row * cellH);
+        if (y + cellH > 200) return;
+        doc.setFillColor(i % 2 ? 246 : 239, 247, 251);
+        doc.setDrawColor(206, 219, 236);
+        doc.rect(x, y, cellW - 2, cellH - 1.2, 'FD');
+        doc.setTextColor(15, 76, 129);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7.5);
+        doc.text(`${u.ppu}`, x + 1.6, y + 3.3);
+        doc.setTextColor(56, 75, 98);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(6.3);
+        doc.text(`${u.internal} · ${u.brand}`, x + 1.6, y + 6.3);
+      });
+
+      doc.save(`pendientes_${week}.pdf`);
+      toast('Pendientes exportados en PDF.', 'ok');
+    }
+
+    function getPendingUnitsSortedByPPU() {
+      const week = getISOWeek(new Date());
+      const reviewedSet = new Set(records.filter((r) => r.week === week).map((r) => String(r.internal)));
+      return fleet
+        .filter((u) => !reviewedSet.has(String(u.internal)))
+        .sort((a, b) => a.ppu.localeCompare(b.ppu, 'es', { sensitivity: 'base' }));
+    }
+
+    function downloadXLSX(filename, sheetName, headers, rows) {
+      const ws = window.XLSX.utils.aoa_to_sheet([headers, ...rows]);
+      const wb = window.XLSX.utils.book_new();
+      window.XLSX.utils.book_append_sheet(wb, ws, sheetName);
+      window.XLSX.writeFile(wb, filename);
     }
 
     function downloadCSV(filename, headers, rows) {
